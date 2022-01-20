@@ -1,4 +1,4 @@
-module metanet-writer
+module github.com/galt-tr/mn-lib
 
 go 1.16
 

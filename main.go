@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	metanet "mn-lib/metanet"
+
+	metanet "github.com/galt-tr/mn-lib/metanet"
 )
 
 func main() {

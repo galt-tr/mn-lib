@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"../transaction"
 	bsv "github.com/bitcoinschema/go-bitcoin"
 	"github.com/bitcoinsv/bsvd/bsvec"
+	"github.com/galt-tr/mn-lib/transaction"
 	"github.com/libsv/go-bt"
 	"github.com/libsv/go-bt/bscript"
 )

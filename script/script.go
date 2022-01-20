@@ -7,27 +7,27 @@ import (
 )
 
 func NewMetanetP2PKH(address, parentTxId string) (*bscript.Script, error) {
-	s := bscript.Script{}
+	s := &bscript.Script{}
+
+	var err error
 	//append meta flag
 	if err = s.AppendPushDataString("meta"); err != nil {
 		return nil, err
 	}
 
+	//append node address
+	if err = s.AppendPushDataString(address); err != nil {
+		return nil, err
+	}
 	//append parentTxId
 	if err = s.AppendPushDataString(parentTxId); err != nil {
 		return nil, err
 	}
 
-	//append node address
-	if err = s.AppendPushdataString(address); err != nil {
-		return nil, err
-	}
-
 	//Append P2PKH OPCODES
-	if err = s.AppendOpcodes(OpDUP, OpHash160); err != nil {
+	s.AppendOpCode(bscript.OpDUP)
+	s.AppendOpCode(bscript.OpHASH160)
 
-		return nil, err
-	}
 	//Get PubKeyHash and Check Validity
 	a, err := bscript.NewAddressFromString(address)
 	if err != nil {
@@ -43,7 +43,12 @@ func NewMetanetP2PKH(address, parentTxId string) (*bscript.Script, error) {
 		return nil, err
 	}
 
-	_ = s.AppendOpcodes(OpEQUALVERIFY, OpCHECKSIG)
+	s.AppendOpCode(bscript.OpEQUALVERIFY)
+
+	s.AppendOpCode(bscript.OpCHECKSIG)
+	s.AppendOpCode(bscript.OpDROP)
+	s.AppendOpCode(bscript.OpDROP)
+	s.AppendOpCode(bscript.OpDROP)
 
 	return s, nil
 

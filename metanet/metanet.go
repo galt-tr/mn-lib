@@ -30,7 +30,7 @@ type MetanetNode struct {
 func CreateSpendableNode(mn *MetanetNode) (string, error) {
 	rawTx, err := createSpendableTransaction(mn, nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	return rawTx.ToString(), nil
 
@@ -38,12 +38,13 @@ func CreateSpendableNode(mn *MetanetNode) (string, error) {
 
 func createSpendableTransaction(mn *MetanetNode, opReturn [][]byte) (*bt.Tx, error) {
 	payTo := &transaction.PayToMetanetAddress{
-		Address:    mn.NodeAddress,
-		Satoshis:   546,
-		ParentTxId: mn.PArentTxId,
+		Address:       mn.NodeAddress,
+		Satoshis:      546,
+		ParentTxId:    mn.ParentTxId,
+		ChangeAddress: mn.ChangeAddress,
 	}
 
-	rawTx, err := transaction.CreateSpendableMetanetTx(mn.Input, payTo, []bsv.OpReturnData{opReturn}, mn.InputPrivateKey)
+	rawTx, err := transaction.CreateSpendableMetanetTxWithChange(mn.Input, payTo, []bsv.OpReturnData{opReturn}, mn.ChangeAddress, nil, nil, mn.InputPrivateKey)
 	if err != nil {
 		return nil, err
 	}

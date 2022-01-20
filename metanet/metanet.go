@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"../transaction"
 	bsv "github.com/bitcoinschema/go-bitcoin"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/libsv/go-bt"
@@ -24,6 +25,30 @@ type MetanetNode struct {
 	InputPrivateKey *bsvec.PrivateKey //Private Key used to sign input
 	Data            string            //Data to be added at end of OP_RETURN in Metanet Node
 	ChangeAddress   string            //Use for Change
+}
+
+func CreateSpendableNode(mn *MetanetNode) (string, error) {
+	rawTx, err := createSpendableTransaction(mn, nil)
+	if err != nil {
+		return nil, err
+	}
+	return rawTx.ToString(), nil
+
+}
+
+func createSpendableTransaction(mn *MetanetNode, opReturn [][]byte) (*bt.Tx, error) {
+	payTo := &transaction.PayToMetanetAddress{
+		Address:    mn.NodeAddress,
+		Satoshis:   546,
+		ParentTxId: mn.PArentTxId,
+	}
+
+	rawTx, err := transaction.CreateSpendableMetanetTx(mn.Input, payTo, []bsv.OpReturnData{opReturn}, mn.InputPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	return rawTx, nil
+
 }
 
 //Creates Metanet node and returns Raw Transaction Hex

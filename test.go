@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	metanet "metanet-writer/metanet"
+	metanet "mn-lib/metanet"
 )
 
 func main() {

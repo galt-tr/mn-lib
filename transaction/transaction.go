@@ -174,7 +174,6 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 	// sign the transaction
 	if privateKey != nil {
 		signer := bt.InternalSigner{PrivateKey: privateKey, SigHashFlag: 0}
-		fmt.Println(signer)
 		if err = tx.Sign(0, &signer); err != nil {
 			return nil, err
 		}

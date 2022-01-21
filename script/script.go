@@ -6,6 +6,28 @@ import (
 	"github.com/libsv/go-bt/bscript"
 )
 
+func NewSha1HashPuzzle(str, hash string) (*bscript.Script, error) {
+	s := &bscript.Script{}
+	var err error
+
+	//Push SHA1 Hash for Filtering
+	var hashBytes []byte
+	if hashBytes, err = hex.DecodeString(hash); err != nil {
+		return nil, err
+	}
+	if err = s.AppendPushData(hashBytes); err != nil {
+		return nil, err
+	}
+
+	if err = s.AppendPushDataString(str); err != nil {
+		return nil, err
+	}
+
+	s.AppendOpCode(bscript.OpSHA1)
+	s.AppendOpCode(bscript.OpEQUAL)
+	return s, nil
+}
+
 func NewMetanetP2PKH(address, parentTxId string) (*bscript.Script, error) {
 	s := &bscript.Script{}
 
@@ -13,7 +35,7 @@ func NewMetanetP2PKH(address, parentTxId string) (*bscript.Script, error) {
 
 	//Push SHA1 Hash for Filtering
 	var hashBytes []byte
-	if hashBytes, err = hex.DecodeString("8e9c49fd4e791448110a80548eb01783723d4deb"); err != nil {
+	if hashBytes, err = hex.DecodeString("e58a58b0d3f0744e22339f8068db085ada2e2e82"); err != nil {
 		return nil, err
 	}
 	if err = s.AppendPushData(hashBytes); err != nil {
@@ -30,18 +52,21 @@ func NewMetanetP2PKH(address, parentTxId string) (*bscript.Script, error) {
 
 	//append OP_SHA1
 	s.AppendOpCode(bscript.OpSHA1)
+	s.AppendOpCode(bscript.OpEQUALVERIFY)
 
 	//append node address
-	if err = s.AppendPushDataString(address); err != nil {
-		return nil, err
-	}
+	//if err = s.AppendPushDataString(address); err != nil {
+	//	return nil, err
+	//}
 	//append parentTxId
-	if err = s.AppendPushDataString(parentTxId); err != nil {
-		return nil, err
-	}
+	//if err = s.AppendPushDataString(parentTxId); err != nil {
+	//	return nil, err
+	//}
+	//s.AppendOpCode(bscript.Op2DROP)
+	//s.AppendOpCode(bscript.OpDROP)
 
 	//Rotate signature and pubkey to top of stack
-	s.AppendOpCode(bscript.Op2ROT)
+	//s.AppendOpCode(bscript.Op2ROT)
 
 	//Append P2PKH OPCODES
 	s.AppendOpCode(bscript.OpDUP)
@@ -64,10 +89,10 @@ func NewMetanetP2PKH(address, parentTxId string) (*bscript.Script, error) {
 
 	s.AppendOpCode(bscript.OpEQUALVERIFY)
 
-	s.AppendOpCode(bscript.OpCHECKSIGVERIFY)
+	s.AppendOpCode(bscript.OpCHECKSIG)
 	//s.AppendOpCode(bscript.OpROT)
-	s.AppendOpCode(bscript.Op2DROP)
-	s.AppendOpCode(bscript.OpEQUAL)
+	//s.AppendOpCode(bscript.Op2DROP)
+	//s.AppendOpCode(bscript.OpEQUAL)
 
 	return s, nil
 

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 
 	"github.com/libsv/go-bt/bscript"
+	"github.com/libsv/go-bt/sighash"
 )
 
 func NewSha1HashPuzzle(str, hash string) (*bscript.Script, error) {
@@ -28,45 +29,37 @@ func NewSha1HashPuzzle(str, hash string) (*bscript.Script, error) {
 	return s, nil
 }
 
-func NewMetanetP2PKH(address, parentTxId string) (*bscript.Script, error) {
+func NewMetanetP2PKH(address, parentTxId, data string) (*bscript.Script, error) {
 	s := &bscript.Script{}
 
 	var err error
 
 	//Push SHA1 Hash for Filtering
-	var hashBytes []byte
-	if hashBytes, err = hex.DecodeString("e58a58b0d3f0744e22339f8068db085ada2e2e82"); err != nil {
+	if err = s.AppendPushDataHexString("cb030491157b26a570b6ee91e5b068d99c3b72f6"); err != nil {
 		return nil, err
 	}
-	if err = s.AppendPushData(hashBytes); err != nil {
-		return nil, err
-	}
-	//if err = s.AppendPushDataString("CB030491157B26A570B6EE91E5B068D99C3B72F6"); err != nil {
-	//	return nil, err
-	//}
 
 	//append meta flag
-	if err = s.AppendPushDataString("meta"); err != nil {
+	var str string
+	str = "meta"
+	if err = s.AppendPushDataString(str); err != nil {
 		return nil, err
 	}
 
 	//append OP_SHA1
 	s.AppendOpCode(bscript.OpSHA1)
-	s.AppendOpCode(bscript.OpEQUALVERIFY)
 
 	//append node address
-	//if err = s.AppendPushDataString(address); err != nil {
-	//	return nil, err
-	//}
-	//append parentTxId
-	//if err = s.AppendPushDataString(parentTxId); err != nil {
-	//	return nil, err
-	//}
-	//s.AppendOpCode(bscript.Op2DROP)
-	//s.AppendOpCode(bscript.OpDROP)
+	if err = s.AppendPushDataString(address); err != nil {
+		return nil, err
+	}
+	// append parentTxId
+	if err = s.AppendPushDataString(parentTxId); err != nil {
+		return nil, err
+	}
 
 	//Rotate signature and pubkey to top of stack
-	//s.AppendOpCode(bscript.Op2ROT)
+	s.AppendOpCode(bscript.Op2ROT)
 
 	//Append P2PKH OPCODES
 	s.AppendOpCode(bscript.OpDUP)
@@ -89,10 +82,32 @@ func NewMetanetP2PKH(address, parentTxId string) (*bscript.Script, error) {
 
 	s.AppendOpCode(bscript.OpEQUALVERIFY)
 
-	s.AppendOpCode(bscript.OpCHECKSIG)
-	//s.AppendOpCode(bscript.OpROT)
-	//s.AppendOpCode(bscript.Op2DROP)
-	//s.AppendOpCode(bscript.OpEQUAL)
+	s.AppendOpCode(bscript.OpCHECKSIGVERIFY)
+	s.AppendOpCode(bscript.Op2DROP)
+	s.AppendOpCode(bscript.OpEQUAL)
+	if data != "" {
+		s.AppendOpCode(bscript.OpRETURN)
+		s.AppendPushDataString(data)
+	}
+
+	return s, nil
+}
+
+func NewMetanetUnlockingScript(pubKey, preimage, sig []byte, sigHashFlag sighash.Flag) (*bscript.Script, error) {
+	sigBuf := []byte{}
+	sigBuf = append(sigBuf, sig...)
+	sigBuf = append(sigBuf, uint8(sigHashFlag))
+
+	scriptBuf := [][]byte{sigBuf, pubKey}
+	s := &bscript.Script{}
+	err := s.AppendPushDataArray(scriptBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = s.AppendPushData(preimage); err != nil {
+		return nil, err
+	}
 
 	return s, nil
 

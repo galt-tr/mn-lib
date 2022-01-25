@@ -8,19 +8,19 @@ import (
 )
 
 func main() {
-	privKey, _ := bsv.WifToPrivateKey("L1qKK6yz2ZEXwe9SptJDKs3G1BR2Np828uQiq2ojqsPLafYbze2r")
+	privKey, _ := bsv.WifToPrivateKey("KwYGNR5PygDEu8PjmUk5s6s9Bjs8cmfkT2okRUhTwiduaRBMQq1r")
 	node := &metanet.MetanetNode{
 		Prefix:      "meta",
-		NodeAddress: "166Uuce9aPFftGcFUgTj5p6NAzLwyEYHYT",
-		ParentTxId:  "NULL",
+		NodeAddress: "1NcPo5QyH5VpvhhcLqBmpx5txgpM683caj",
+		ParentTxId:  "c6a548370e7c603a54a871e0d38107e6f971bf50b2463feb521c39d93a3647e0",
 		Input: []*bsv.Utxo{&bsv.Utxo{
-			Satoshis:     4754815,
-			ScriptPubKey: "76a914dfe61ca18783253b027cd2cd1f655ce68f9c470888ac",
-			TxID:         "3b9cbdd54d382a9f23e6030623ccd4f49728675ca897f933de54c465a5ae7847",
-			Vout:         1,
+			Satoshis:     1500,
+			ScriptPubKey: "0079aa517f7c818b7c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e6054958b7e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ad7514cb030491157b26a570b6ee91e5b068d99c3b72f6046d657461a722313368524a4a526779687351317531586632486338624e7559776f477a66424d4831044e554c4c7176a9141d952c5874c571808faf547c84f62b7eb6818a2988ad6d876a0774657374696e67",
+			TxID:         "c6a548370e7c603a54a871e0d38107e6f971bf50b2463feb521c39d93a3647e0",
+			Vout:         0,
 		}},
 		InputPrivateKey: privKey,
-		ChangeAddress:   "166Uuce9aPFftGcFUgTj5p6NAzLwyEYHYT",
+		ChangeAddress:   "1NcPo5QyH5VpvhhcLqBmpx5txgpM683caj",
 		Data:            "testing",
 	}
 	hex, preimage, err := metanet.CreateSpendableNode(node)

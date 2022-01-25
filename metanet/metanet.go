@@ -39,7 +39,7 @@ func CreateSpendableNode(mn *MetanetNode) (string, string, error) {
 func createSpendableTransaction(mn *MetanetNode) (*bt.Tx, []byte, error) {
 	payTo := &transaction.PayToMetanetAddress{
 		Address:       mn.NodeAddress,
-		Satoshis:      500,
+		Satoshis:      900,
 		ParentTxId:    mn.ParentTxId,
 		ChangeAddress: mn.ChangeAddress,
 	}

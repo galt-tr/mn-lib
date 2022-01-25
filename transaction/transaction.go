@@ -8,6 +8,7 @@ import (
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/galt-tr/mn-lib/script"
 	sign "github.com/galt-tr/mn-lib/sign"
+	"github.com/libsv/go-bk/crypto"
 	"github.com/libsv/go-bt"
 	"github.com/libsv/go-bt/bscript"
 	"github.com/libsv/go-bt/sighash"
@@ -174,9 +175,11 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 	if preimage, err = tx.GetInputPreimage(0, sigHashFlag); err != nil {
 		return nil, nil, err
 	}
-
+	//preimage = nil
 	var index uint32
 	index = 0
+
+	// generate known r and pubkey for locking script
 
 	// sign the transaction - currently only signing input 0
 	if privateKey != nil {
@@ -189,4 +192,18 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 	// return the transaction as a raw string
 	return tx, preimage, nil
 
+}
+
+func GetR(preimage []byte) ([]byte, error) {
+	privKey, err := bsvec.NewPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := crypto.Sha256d(preimage)
+	if err != nil {
+		return nil, err
+	}
+	sig, err := bsvd.Sign()
+	return
 }

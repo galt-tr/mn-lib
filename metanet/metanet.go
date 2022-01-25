@@ -27,6 +27,16 @@ type MetanetNode struct {
 	ChangeAddress   string            //Use for Change
 }
 
+func CreateOpPushTx(mn *MetanetNode) (string, error) {
+	payTo := &transaction.PayToMetanetAddress{
+		Address:       mn.NodeAddress,
+		Satoshis:      1500,
+		ChangeAddress: mn.ChangeAddress,
+	}
+	rawTx, err := transaction.CreateOpPushTxTransaction(mn.Input, mn.InputPrivateKey, payTo)
+	return nil, nil
+}
+
 func CreateSpendableNode(mn *MetanetNode) (string, string, error) {
 	rawTx, preimage, err := createSpendableTransaction(mn)
 	if err != nil {

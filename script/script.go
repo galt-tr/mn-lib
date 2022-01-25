@@ -66,28 +66,12 @@ func NewMetanetP2PKH(address, parentTxId, data string) (*bscript.Script, error) 
 	//Rotate signature and pubkey to top of stack
 	s.AppendOpCode(bscript.Op2ROT)
 
-	//Append P2PKH OPCODES
-	s.AppendOpCode(bscript.OpDUP)
-	s.AppendOpCode(bscript.OpHASH160)
-
-	//Get PubKeyHash and Check Validity
-	a, err := bscript.NewAddressFromString(address)
-	if err != nil {
+	//Add P2PKH Script
+	if s, err = AppendP2PKHLockingScript(s, address); err != nil {
 		return nil, err
 	}
 
-	var pubKeyHashBytes []byte
-	if pubKeyHashBytes, err = hex.DecodeString(a.PublicKeyHash); err != nil {
-		return nil, err
-	}
-
-	if err = s.AppendPushData(pubKeyHashBytes); err != nil {
-		return nil, err
-	}
-
-	s.AppendOpCode(bscript.OpEQUALVERIFY)
-
-	s.AppendOpCode(bscript.OpCHECKSIGVERIFY)
+	s.AppendOpCode(bscript.OpVERIFY)
 	s.AppendOpCode(bscript.Op2DROP)
 	s.AppendOpCode(bscript.OpEQUAL)
 	if data != "" {
@@ -127,12 +111,13 @@ func AppendPushTx(s *bscript.Script) (*bscript.Script, error) {
 
 	s.AppendOpCode(bscript.OpSWAP)
 	s.AppendOpCode(bscript.OpCAT)
-	//Not working in mainnet, so going to calculate this manually
+	//Not working in mainnet, so using hex string
 	//s.AppendOpCode(bscript.OpDATA65)
-	s.AppendOpCode(bscript.Op16)
-	s.AppendOpCode(bscript.Op4)
-	s.AppendOpCode(bscript.OpMUL)
-	s.AppendOpCode(bscript.Op1ADD)
+
+	if err = s.AppendPushDataHexString("41"); err != nil {
+		return nil, err
+	}
+
 	s.AppendOpCode(bscript.OpCAT)
 
 	pubKeyHashBytes, err := hex.DecodeString("02b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0")
@@ -168,5 +153,54 @@ func NewMetanetUnlockingScript(pubKey, preimage, sig []byte, sigHashFlag sighash
 	}
 
 	return s, nil
+}
 
+//Currently the same as Metanet Unlocking Script, but separating for future
+
+func NewOpPushTxUnlockingScript(pubKey, preimage, sig []byte, sigHashFlag sighash.Flag) (*bscript.Script, error) {
+	sigBuf := []byte{}
+	sigBuf = append(sigBuf, sig...)
+	sigBuf = append(sigBuf, uint8(sigHashFlag))
+
+	scriptBuf := [][]byte{sigBuf, pubKey}
+	s := &bscript.Script{}
+	err := s.AppendPushDataArray(scriptBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	if preimage != nil {
+		if err = s.AppendPushData(preimage); err != nil {
+			return nil, err
+		}
+	}
+
+	return s, nil
+}
+
+func AppendP2PKHLockingScript(s *bscript.Script, address string) (*bscript.Script, error) {
+	//Append P2PKH OPCODES
+	s.AppendOpCode(bscript.OpDUP)
+	s.AppendOpCode(bscript.OpHASH160)
+
+	//Get PubKeyHash and Check Validity
+	a, err := bscript.NewAddressFromString(address)
+	if err != nil {
+		return nil, err
+	}
+
+	var pubKeyHashBytes []byte
+	if pubKeyHashBytes, err = hex.DecodeString(a.PublicKeyHash); err != nil {
+		return nil, err
+	}
+
+	if err = s.AppendPushData(pubKeyHashBytes); err != nil {
+		return nil, err
+	}
+
+	s.AppendOpCode(bscript.OpEQUALVERIFY)
+
+	s.AppendOpCode(bscript.OpCHECKSIG)
+
+	return s, nil
 }

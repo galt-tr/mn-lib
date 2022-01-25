@@ -8,7 +8,6 @@ import (
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/galt-tr/mn-lib/script"
 	sign "github.com/galt-tr/mn-lib/sign"
-	"github.com/libsv/go-bk/crypto"
 	"github.com/libsv/go-bt"
 	"github.com/libsv/go-bt/bscript"
 	"github.com/libsv/go-bt/sighash"
@@ -176,10 +175,10 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 		return nil, nil, err
 	}
 	//preimage = nil
+
+	//TODO: Only signing output 0
 	var index uint32
 	index = 0
-
-	// generate known r and pubkey for locking script
 
 	// sign the transaction - currently only signing input 0
 	if privateKey != nil {
@@ -194,16 +193,85 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 
 }
 
-func GetR(preimage []byte) ([]byte, error) {
-	privKey, err := bsvec.NewPrivateKey()
-	if err != nil {
+//TODO: Restructure PayToMetanetAddress - should be more general, but going to use it for now here
+
+func CreateOpPushTx(utxos []*bsv.Utxo, privateKey *bsvec.PrivateKey, payTo *PayToMetanetAddress) (*bt.Tx, error) {
+
+	//start creating a new transaction
+	tx := bt.NewTx()
+
+	//accumulate the total satoshis from all utxo(s)
+	var totalSatoshis uint64
+
+	// loop all utxos and add to the transaction
+	var err error
+	for _, utxo := range utxos {
+		if err = tx.From(utxo.TxID, utxo.Vout, utxo.ScriptPubKey, utxo.Satoshis); err != nil {
+			return nil, err
+		}
+		totalSatoshis += utxo.Satoshis
+	}
+
+	var s *bscript.Script
+
+	if s, err = script.AppendPushTx(s); err != nil {
 		return nil, err
 	}
 
-	hash, err := crypto.Sha256d(preimage)
-	if err != nil {
+	if s, err = script.AppendP2PKHLockingScript(s, payTo.Address); err != nil {
 		return nil, err
 	}
-	sig, err := bsvd.Sign()
-	return
+
+	tx.AddOutput(&bt.Output{
+		Satoshis:      payTo.Satoshis,
+		LockingScript: s,
+	})
+
+	// Add Change
+	if payTo.HasChange == true {
+		changeScript, err := bscript.NewP2PKHFromAddress(payTo.ChangeAddress)
+		if err != nil {
+			return nil, err
+		}
+
+		tx.AddOutput(&bt.Output{
+			Satoshis:      payTo.ChangeSatoshis,
+			LockingScript: changeScript,
+		})
+	}
+
+	//if inputs are supplied make sure they are sufficient for this transaction
+	if len(tx.GetInputs()) > 0 {
+		totalOutputSatoshis := tx.GetTotalOutputSatoshis() // does not work properly
+		if totalOutputSatoshis > totalSatoshis {
+			return nil, errors.New("not enough in utxo(s) to cover")
+		}
+	}
+
+	//Set Sighash Flag
+	var sigHashFlag sighash.Flag
+	sigHashFlag = 0
+
+	var preimage []byte
+	// Calculate Preimage
+	// TODO: Currently defaults to signing for output 0 - should do smart checking
+	if preimage, err = tx.GetInputPreimage(0, sigHashFlag); err != nil {
+		return nil, err
+	}
+
+	//TODO: Only Signing Output 0
+	var index uint32
+	index = 0
+
+	// sign the transaction - currently only signing input 0
+	if privateKey != nil {
+		signer := sign.Signer{PrivateKey: privateKey, SigHashFlag: sigHashFlag}
+		if tx, err = signer.SignOpPushTxTransaction(index, preimage, tx); err != nil {
+			return nil, err
+		}
+	}
+
+	// return the transaction as a raw string
+	return tx, nil
+
 }

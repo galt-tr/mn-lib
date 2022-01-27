@@ -170,32 +170,36 @@ func AppendP2PKHLockingScript(s *bscript.Script, address string) (*bscript.Scrip
 func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 
 	var err error
-
+	s.AppendOpCode(bscript.Op1)
+	s.AppendOpCode(bscript.OpSPLIT)
 	// split 21 byte (0x15) hash from script
-	if err = s.AppendPushDataHexString("15"); err != nil {
-		return nil, err
-	}
+	//if err = s.AppendPushDataHexString("15"); err != nil {
+	//	return nil, err
+	//}
+	s.AppendOpCode(bscript.OpSWAP)
 	s.AppendOpCode(bscript.OpSPLIT)
 
-	//push 148  to stack to split template after 'meta'+ pushdata prefix for pubkey
+	//push 177  to stack to split template after 'meta'+ pushdata prefix for pubkey
 	// i don't think I can push hex str need to instead get 139 manually i think
 	//if err = s.AppendPushDataHexString("79"); err != nil {
 	//	return nil, err
 	//}
-	s.AppendOpCode(bscript.Op14)
-	s.AppendOpCode(bscript.Op10)
+	s.AppendOpCode(bscript.Op16)
+	s.AppendOpCode(bscript.Op11)
 	s.AppendOpCode(bscript.OpMUL)
-	s.AppendOpCode(bscript.Op8)
+	s.AppendOpCode(bscript.Op1)
 	s.AppendOpCode(bscript.OpADD)
 
 	s.AppendOpCode(bscript.OpSPLIT)
 
 	//TODO: Should be smart and grab data prefix to better split the template. This would allow for data of non-fixed lengths
-
 	// push 33 (0x21) to stack to split template after public key of node
-	if err = s.AppendPushDataHexString("21"); err != nil {
-		return nil, err
-	}
+	//if err = s.AppendPushDataHexString("21"); err != nil {
+	//	return nil, err
+	//}
+	s.AppendOpCode(bscript.Op1)
+	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpCode(bscript.OpOVER)
 
 	s.AppendOpCode(bscript.OpSPLIT)
 	// split first data prefix byte from txid
@@ -203,9 +207,11 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	s.AppendOpCode(bscript.OpSPLIT)
 
 	// push 32 (0x20) to stack to split template after parent txid
-	if err = s.AppendPushDataHexString("20"); err != nil {
-		return nil, err
-	}
+	//if err = s.AppendPushDataHexString("20"); err != nil {
+	//	return nil, err
+	//}
+	// accomplished with op_OVER
+	s.AppendOpCode(bscript.OpOVER)
 
 	s.AppendOpCode(bscript.OpSPLIT)
 
@@ -229,6 +235,9 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	// concatenate script template
 	s.AppendOpCode(bscript.OpCAT)
 	s.AppendOpCode(bscript.OpNIP)
+	s.AppendOpCode(bscript.OpCAT)
+	s.AppendOpCode(bscript.OpROT)
+	s.AppendOpCode(bscript.OpSWAP)
 	s.AppendOpCode(bscript.OpCAT)
 	s.AppendOpCode(bscript.OpROT)
 	s.AppendOpCode(bscript.OpSWAP)

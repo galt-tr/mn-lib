@@ -7,7 +7,6 @@ import (
 	bsv "github.com/bitcoinschema/go-bitcoin"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/galt-tr/mn-lib/script"
-	sign "github.com/galt-tr/mn-lib/sign"
 	"github.com/libsv/go-bt"
 	"github.com/libsv/go-bt/bscript"
 	"github.com/libsv/go-bt/sighash"
@@ -15,6 +14,7 @@ import (
 
 type PayToMetanetAddress struct {
 	Address        string `json:"address"`
+	PublicKey      string `json:"publicKey"`
 	Satoshis       uint64 `json:"satoshis"`
 	ParentTxId     string `json:"parenttxid"`
 	HasChange      bool   `json:"hasChange"`
@@ -22,12 +22,12 @@ type PayToMetanetAddress struct {
 	ChangeSatoshis uint64 `json"changeSatoshis"`
 }
 
-func CreateSpendableMetanetTxWithChange(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress, data, changeAddress string, standardRate, dataRate *bt.Fee, privateKey *bsvec.PrivateKey) (*bt.Tx, []byte, error) {
+func CreateSpendableMetanetTxWithChange(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress, data, changeAddress string, standardRate, dataRate *bt.Fee, privateKey *bsvec.PrivateKey) (*bt.Tx, error) {
 
 	if len(utxos) == 0 {
-		return nil, nil, errors.New("utxos(s) are required to create a tx")
+		return nil, errors.New("utxos(s) are required to create a tx")
 	} else if len(changeAddress) == 0 {
-		return nil, nil, errors.New("change address is required")
+		return nil, errors.New("change address is required")
 	}
 
 	// Accumulate the total satoshis from all utxo(s)
@@ -45,7 +45,7 @@ func CreateSpendableMetanetTxWithChange(utxos []*bsv.Utxo, mnAddress *PayToMetan
 
 	// Sanity check - already not enough satoshis?
 	if totalPayToSatoshis > totalSatoshis {
-		return nil, nil, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"not enough in utxo(s) to cover: %d + (fee), total found: %d",
 			totalPayToSatoshis,
 			totalSatoshis,
@@ -65,7 +65,7 @@ func CreateSpendableMetanetTxWithChange(utxos []*bsv.Utxo, mnAddress *PayToMetan
 	// Create the "Draft tx"
 	fee, err := draftTx(utxos, mnAddress, data, privateKey, standardRate, dataRate)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Check that we have enough to cover the fee
@@ -74,7 +74,7 @@ func CreateSpendableMetanetTxWithChange(utxos []*bsv.Utxo, mnAddress *PayToMetan
 
 		//Re-run draft tx with no change address
 		if fee, err = draftTx(utxos, mnAddress, data, privateKey, standardRate, dataRate); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		mnAddress.HasChange = true
 
@@ -104,7 +104,7 @@ func CreateSpendableMetanetTxWithChange(utxos []*bsv.Utxo, mnAddress *PayToMetan
 func draftTx(utxos []*bsv.Utxo, payTo *PayToMetanetAddress, data string, privateKey *bsvec.PrivateKey, standardRate, dataRate *bt.Fee) (uint64, error) {
 
 	// Create the "Draft tx"
-	tx, _, err := CreateSpendableMetanetTx(utxos, payTo, data, privateKey)
+	tx, err := CreateSpendableMetanetTx(utxos, payTo, data, privateKey)
 	if err != nil {
 		return 0, err
 	}
@@ -116,7 +116,7 @@ func draftTx(utxos []*bsv.Utxo, payTo *PayToMetanetAddress, data string, private
 }
 
 // Creates Transaction without Change
-func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress, data string, privateKey *bsvec.PrivateKey) (*bt.Tx, []byte, error) {
+func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress, data string, privateKey *bsvec.PrivateKey) (*bt.Tx, error) {
 
 	//start creating a new transaction
 	tx := bt.NewTx()
@@ -128,15 +128,15 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 	var err error
 	for _, utxo := range utxos {
 		if err = tx.From(utxo.TxID, utxo.Vout, utxo.ScriptPubKey, utxo.Satoshis); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		totalSatoshis += utxo.Satoshis
 	}
 
 	var s *bscript.Script
 
-	if s, err = script.NewMetanetP2PKH(mnAddress.Address, mnAddress.ParentTxId, data); err != nil {
-		return nil, nil, err
+	if s, err = script.NewMetanetP2PKH(mnAddress.PublicKey, mnAddress.ParentTxId, data); err != nil {
+		return nil, err
 	}
 
 	tx.AddOutput(&bt.Output{
@@ -148,7 +148,7 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 	if mnAddress.HasChange == true {
 		changeScript, err := bscript.NewP2PKHFromAddress(mnAddress.ChangeAddress)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		tx.AddOutput(&bt.Output{
@@ -161,7 +161,7 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 	if len(tx.GetInputs()) > 0 {
 		totalOutputSatoshis := tx.GetTotalOutputSatoshis() // does not work properly
 		if totalOutputSatoshis > totalSatoshis {
-			return nil, nil, errors.New("not enough in utxo(s) to cover")
+			return nil, errors.New("not enough in utxo(s) to cover")
 		}
 	}
 
@@ -173,7 +173,7 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 	// Calculate Preimage
 	// TODO: Currently defaults to signing for output 0 - should do smart checking
 	if preimage, err = tx.GetInputPreimage(0, sigHashFlag); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	//preimage = nil
@@ -183,14 +183,21 @@ func CreateSpendableMetanetTx(utxos []*bsv.Utxo, mnAddress *PayToMetanetAddress,
 	index = 0
 
 	// sign the transaction - currently only signing input 0
+	// instead of implementing our own signer will continue to use go-bt v1 signer and append to unlocking script
 	if privateKey != nil {
-		signer := sign.Signer{PrivateKey: privateKey, SigHashFlag: sigHashFlag}
-		if tx, err = signer.SignMetanetTransaction(index, preimage, tx); err != nil {
-			return nil, nil, err
+		signer := bt.InternalSigner{PrivateKey: privateKey, SigHashFlag: sigHashFlag}
+		if tx, err = signer.Sign(index, tx); err != nil {
+			return nil, err
 		}
 	}
 
+	// Append to P2PKH Unlocking Script
+	s = tx.Inputs[0].UnlockingScript
+	if s, err = script.AppendMetanetUnlockingScript(s, preimage); err != nil {
+		return nil, err
+	}
+
 	// return the transaction as a raw string
-	return tx, preimage, nil
+	return tx, nil
 
 }

@@ -20,6 +20,7 @@ import (
 type MetanetNode struct {
 	Prefix          string            //Prefix for Metanet Nodes - default to 'meta'
 	NodeAddress     string            //Node Public Key Address
+	NodePublicKey   string            //Public Key of Node
 	ParentTxId      string            //Transaction ID of Parent Node
 	Input           []*bsv.Utxo       //utxo of parent node
 	InputPrivateKey *bsvec.PrivateKey //Private Key used to sign input
@@ -37,28 +38,29 @@ type MetanetNode struct {
 //return "", nil
 //}
 
-func CreateSpendableNode(mn *MetanetNode) (string, string, error) {
-	rawTx, preimage, err := createSpendableTransaction(mn)
+func CreateSpendableNode(mn *MetanetNode) (string, error) {
+	rawTx, err := createSpendableTransaction(mn)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	return rawTx.ToString(), hex.EncodeToString(preimage), nil
+	return rawTx.ToString(), nil
 
 }
 
-func createSpendableTransaction(mn *MetanetNode) (*bt.Tx, []byte, error) {
+func createSpendableTransaction(mn *MetanetNode) (*bt.Tx, error) {
 	payTo := &transaction.PayToMetanetAddress{
+		PublicKey:     mn.NodePublicKey,
 		Address:       mn.NodeAddress,
-		Satoshis:      1200,
+		Satoshis:      4000,
 		ParentTxId:    mn.ParentTxId,
 		ChangeAddress: mn.ChangeAddress,
 	}
 
-	rawTx, preimage, err := transaction.CreateSpendableMetanetTxWithChange(mn.Input, payTo, mn.Data, mn.ChangeAddress, nil, nil, mn.InputPrivateKey)
+	rawTx, err := transaction.CreateSpendableMetanetTxWithChange(mn.Input, payTo, mn.Data, mn.ChangeAddress, nil, nil, mn.InputPrivateKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return rawTx, preimage, nil
+	return rawTx, nil
 
 }
 

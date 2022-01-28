@@ -51,7 +51,7 @@ func createSpendableTransaction(mn *MetanetNode) (*bt.Tx, error) {
 	payTo := &transaction.PayToMetanetAddress{
 		PublicKey:     mn.NodePublicKey,
 		Address:       mn.NodeAddress,
-		Satoshis:      4000,
+		Satoshis:      3500,
 		ParentTxId:    mn.ParentTxId,
 		ChangeAddress: mn.ChangeAddress,
 	}

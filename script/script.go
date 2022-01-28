@@ -39,9 +39,8 @@ func NewMetanetP2PKH(pubKey, parentTxId, data string) (*bscript.Script, error) {
 	var err error
 
 	//Push SHA1 Hash for Filtering
-	// SHA1 Hash of template is 'f987be172d68cb99e8e51a8dada6e0bc38a1d547'
-	// hex: '51795a5a9554937f517f7c817f7b6d01157f5e5a9558937f01217f517f01207f557f01147f527f75777e777e7b7c7ea77b885179880079aa517f7c818b7c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ad046d6574612120756d76a91488ac'
-	if err = s.AppendPushDataHexString("f987be172d68cb99e8e51a8dada6e0bc38a1d547"); err != nil {
+	// SHA1 Hash of template is ' bc0514e202fcc80f0266629cc9e312075794f87a  '
+	if err = s.AppendPushDataHexString("bc0514e202fcc80f0266629cc9e312075794f87a"); err != nil {
 		return nil, err
 	}
 
@@ -178,8 +177,9 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	//}
 	s.AppendOpCode(bscript.OpSWAP)
 	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpCode(bscript.OpNIP)
 
-	//push 177  to stack to split template after 'meta'+ pushdata prefix for pubkey
+	//push 186  to stack to split template after 'meta'+ pushdata prefix for pubkey
 	// i don't think I can push hex str need to instead get 139 manually i think
 	//if err = s.AppendPushDataHexString("79"); err != nil {
 	//	return nil, err
@@ -187,7 +187,7 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	s.AppendOpCode(bscript.Op16)
 	s.AppendOpCode(bscript.Op11)
 	s.AppendOpCode(bscript.OpMUL)
-	s.AppendOpCode(bscript.Op1)
+	s.AppendOpCode(bscript.Op10)
 	s.AppendOpCode(bscript.OpADD)
 
 	s.AppendOpCode(bscript.OpSPLIT)
@@ -242,7 +242,6 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	s.AppendOpCode(bscript.OpROT)
 	s.AppendOpCode(bscript.OpSWAP)
 	s.AppendOpCode(bscript.OpCAT)
-
 	// SHA1 hash the script template
 	s.AppendOpCode(bscript.OpSHA1)
 

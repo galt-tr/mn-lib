@@ -39,8 +39,8 @@ func NewMetanetP2PKH(pubKey, parentTxId, data string) (*bscript.Script, error) {
 	var err error
 
 	//Push SHA1 Hash for Filtering
-	// SHA1 Hash of template is ' bc0514e202fcc80f0266629cc9e312075794f87a  '
-	if err = s.AppendPushDataHexString("bc0514e202fcc80f0266629cc9e312075794f87a"); err != nil {
+	// SHA1 Hash of template is ' 4132cd76ca3582692f749658d9d58486e13d429b '
+	if err = s.AppendPushDataHexString("4132cd76ca3582692f749658d9d58486e13d429b"); err != nil {
 		return nil, err
 	}
 
@@ -179,7 +179,7 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	s.AppendOpCode(bscript.OpSPLIT)
 	s.AppendOpCode(bscript.OpNIP)
 
-	//push 186  to stack to split template after 'meta'+ pushdata prefix for pubkey
+	//push 187 to stack to split template after 'meta'+ pushdata prefix for pubkey
 	// i don't think I can push hex str need to instead get 139 manually i think
 	//if err = s.AppendPushDataHexString("79"); err != nil {
 	//	return nil, err
@@ -187,7 +187,7 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	s.AppendOpCode(bscript.Op16)
 	s.AppendOpCode(bscript.Op11)
 	s.AppendOpCode(bscript.OpMUL)
-	s.AppendOpCode(bscript.Op10)
+	s.AppendOpCode(bscript.Op11)
 	s.AppendOpCode(bscript.OpADD)
 
 	s.AppendOpCode(bscript.OpSPLIT)
@@ -250,7 +250,7 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	s.AppendOpCode(bscript.OpEQUALVERIFY)
 
 	// grab public key and check they are equal for valid metanet node
-	s.AppendOpCode(bscript.Op1)
+	s.AppendOpCode(bscript.Op2)
 	s.AppendOpCode(bscript.OpPICK)
 	s.AppendOpCode(bscript.OpEQUALVERIFY)
 

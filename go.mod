@@ -2,7 +2,7 @@ module github.com/galt-tr/mn-lib
 
 go 1.16
 
-replace github.com/murray-distributed-technologies/go-pushtx => /home/cmurray/gocode/src/github.com/go-pushtx
+replace github.com/murray-distributed-technologies/go-pushtx => /git/go-pushtx
 
 require (
 	github.com/bitcoinschema/go-bitcoin v0.3.20
@@ -11,6 +11,7 @@ require (
 	github.com/libsv/go-bt v1.0.4
 	github.com/libsv/go-bt/v2 v2.1.0-beta.2 // indirect
 	github.com/libsv/libsv v0.0.11
+	github.com/mrz1836/go-whatsonchain v0.9.3 // indirect
 	github.com/murray-distributed-technologies/go-pushtx v0.0.0-00010101000000-000000000000
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
 )

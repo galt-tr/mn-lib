@@ -9,16 +9,16 @@ import (
 )
 
 func main() {
-	parentPrivKey, _ := bsv.WifToPrivateKey("L4PF5nCubsEURgeZW6qCZs92CVesLEHtqvmcGXEwy4ppxdQNYCg9")
-	childPrivKey, _ := bsv.WifToPrivateKey("KyT6vXqr4LMENqFPBxkqtn3AkdErtYWgssNQz1rPTrmUTuYmHNtn")
+	childPrivKey, _ := bsv.WifToPrivateKey("L54vKPJjxy7GueTjmbXZXDbhM3qJKxTge4Nny6txyV71maT5XJqk")
+	parentPrivKey, _ := bsv.WifToPrivateKey("L4wdGhsyeGhGG7kmDZUav8qBRdavZh8ixb4oJ1YfULey9btQe7XU")
 	pubKey := bsv.PubKeyFromPrivateKey(childPrivKey, true)
 	address, _ := bsv.GetAddressFromPubKeyString(pubKey, true)
 
 	var sats uint64
 	var vOut uint32
 
-	txId := "58fc9319d7b9d18a92724e3b7e95ceba99ccd780b7995362d44cbee8bc46b545"
-	vOut = 1
+	txId := "a67b0067999c734363e6f1f5743fc490a72e19c687db9529a2bf1b69bc0e1586"
+	vOut = 0
 
 	o, _ := woc.GetTransactionOutput(txId, int(vOut))
 
@@ -40,7 +40,7 @@ func main() {
 		ChangeAddress:   address.String(),
 		Data:            "testing",
 	}
-	rawTx, err := metanet.CreateSpendableNode(node)
+	rawTx, err := metanet.CreateOpPushTx(node)
 	if err != nil {
 		fmt.Println(err)
 	}

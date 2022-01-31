@@ -28,15 +28,18 @@ type MetanetNode struct {
 	ChangeAddress   string            //Use for Change
 }
 
-//func CreateOpPushTx(mn *MetanetNode) (string, error) {
-//payTo := &transaction.PayToMetanetAddress{
-//	Address:       mn.NodeAddress,
-//	Satoshis:      1500,
-//	ChangeAddress: mn.ChangeAddress,
-//}
-//rawTx, err := transaction.CreateOpPushTxTransaction(mn.Input, mn.InputPrivateKey, payTo)
-//return "", nil
-//}
+func CreateOpPushTx(mn *MetanetNode) (string, error) {
+	payTo := &transaction.PayToMetanetAddress{
+		Address:       mn.NodeAddress,
+		Satoshis:      900,
+		ChangeAddress: mn.ChangeAddress,
+	}
+	rawTx, err := transaction.CreateOpPushTxWithChange(mn.Input, payTo, mn.ChangeAddress, nil, nil, mn.InputPrivateKey)
+	if err != nil {
+		return "", err
+	}
+	return rawTx.ToString(), nil
+}
 
 func CreateSpendableNode(mn *MetanetNode) (string, error) {
 	rawTx, err := createSpendableTransaction(mn)
@@ -51,7 +54,7 @@ func createSpendableTransaction(mn *MetanetNode) (*bt.Tx, error) {
 	payTo := &transaction.PayToMetanetAddress{
 		PublicKey:     mn.NodePublicKey,
 		Address:       mn.NodeAddress,
-		Satoshis:      3500,
+		Satoshis:      1500,
 		ParentTxId:    mn.ParentTxId,
 		ChangeAddress: mn.ChangeAddress,
 	}

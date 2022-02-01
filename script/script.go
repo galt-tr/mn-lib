@@ -5,10 +5,9 @@ import (
 
 	pushtx "github.com/murray-distributed-technologies/go-pushtx/script"
 
-	bsv "github.com/bitcoinschema/go-bitcoin"
-
-	"github.com/libsv/go-bt/bscript"
-	"github.com/libsv/go-bt/sighash"
+	"github.com/galt-tr/mn-lib/types"
+	"github.com/libsv/go-bt/v2/bscript"
+	"github.com/libsv/go-bt/v2/sighash"
 )
 
 func NewSha1HashPuzzle(str, hash string) (*bscript.Script, error) {
@@ -28,95 +27,80 @@ func NewSha1HashPuzzle(str, hash string) (*bscript.Script, error) {
 		return nil, err
 	}
 
-	s.AppendOpCode(bscript.OpSHA1)
-	s.AppendOpCode(bscript.OpEQUAL)
+	s.AppendOpcodes(bscript.OpSHA1)
+	s.AppendOpcodes(bscript.OpEQUAL)
 	return s, nil
 }
-
-func NewMetanetP2PKH(pubKey, parentTxId, data string) (*bscript.Script, error) {
-	s := &bscript.Script{}
-
+func AppendFilterHash(s *bscript.Script) (*bscript.Script, error) {
 	var err error
-
 	//Push SHA1 Hash for Filtering
 	// SHA1 Hash of template is ' 4132cd76ca3582692f749658d9d58486e13d429b '
 	if err = s.AppendPushDataHexString("4132cd76ca3582692f749658d9d58486e13d429b"); err != nil {
 		return nil, err
 	}
+	return s, nil
+}
 
-	// grab preimage off the stack
-	s.AppendOpCode(bscript.Op1)
-	s.AppendOpCode(bscript.OpPICK)
+func NewMetanetLockingScript(mn *types.MetanetNode) (*bscript.Script, error) {
+	var err error
+	s := &bscript.Script{}
 
-	// get locking script from preimage
+	// add hash for filtering
+	if s, err = AppendFilterHash(s); err != nil {
+		return nil, err
+	}
 
+	// grab preimage to top of stack
+	s.AppendOpcodes(bscript.Op1, bscript.OpPICK)
+
+	// add get input locking script from preimage
 	if s, err = pushtx.AppendGetLockingScriptFromPreimage(s); err != nil {
 		return nil, err
 	}
 
-	// strip data from script template and check hash against sha1 hash of template
-	// also checks that pubkey of parent is same as pubkey used to sign input
-
+	// strip data from locking script to get script template
+	// checks that SHA1 hash of script template verifies against filter hash
+	// checks that public key in node matches with signature pubkey
 	if s, err = StripTemplateData(s); err != nil {
 		return nil, err
 	}
 
-	// add PushTX Check to validate we are in current transaction
-	s, err = pushtx.AppendPushTx(s)
-	if err != nil {
+	// add OP_PUSH_TX
+	if s, err = pushtx.AppendPushTx(s); err != nil {
 		return nil, err
 	}
 
-	//append meta flag
-
+	// append meta flag
 	if err = s.AppendPushDataString("meta"); err != nil {
 		return nil, err
 	}
-
-	//append pubkey
-	if err = s.AppendPushDataHexString(pubKey); err != nil {
+	// append pubkey
+	if err = s.AppendPushDataHexString(mn.NodePublicKey); err != nil {
+		return nil, err
+	}
+	// append parent Tx Id
+	if err = s.AppendPushDataHexString(mn.NodePublicKey); err != nil {
 		return nil, err
 	}
 
-	//append txid
-	if err = s.AppendPushDataHexString(parentTxId); err != nil {
-		return nil, err
-	}
-	s.AppendOpCode(bscript.OpDROP)
-	s.AppendOpCode(bscript.Op2DROP)
+	//drop metanet data from stack
+	s.AppendOpcodes(bscript.OpDROP, bscript.Op2DROP)
 
-	address, err := bsv.GetAddressFromPubKeyString(pubKey, true)
-	if err != nil {
+	// append P2PKH
+	if s, err = pushtx.AppendP2PKH(s, mn.NodeAddress); err != nil {
 		return nil, err
 	}
 
-	//Add P2PKH Script
-	if s, err = AppendP2PKHLockingScript(s, address.String()); err != nil {
-		return nil, err
+	if mn.Data != "" {
+		s.AppendOpcodes(bscript.OpRETURN)
+		s.AppendPushDataString(mn.Data)
 	}
-
-	if data != "" {
-		s.AppendOpCode(bscript.OpRETURN)
-		s.AppendPushDataString(data)
-	}
-
-	return s, nil
-}
-
-func AppendMetanetUnlockingScript(s *bscript.Script, preimage []byte) (*bscript.Script, error) {
-	var err error
-	if preimage != nil {
-		if err = s.AppendPushData(preimage); err != nil {
-			return nil, err
-		}
-	}
-
 	return s, nil
 }
 
 //Currently the same as Metanet Unlocking Script, but separating for future
 
-func NewOpPushTxUnlockingScript(pubKey, preimage, sig []byte, sigHashFlag sighash.Flag) (*bscript.Script, error) {
+func NewMetanetUnlockingScript(pubKey, preimage, sig []byte, sigHashFlag sighash.Flag) (*bscript.Script, error) {
 	sigBuf := []byte{}
 	sigBuf = append(sigBuf, sig...)
 	sigBuf = append(sigBuf, uint8(sigHashFlag))
@@ -139,8 +123,8 @@ func NewOpPushTxUnlockingScript(pubKey, preimage, sig []byte, sigHashFlag sighas
 
 func AppendP2PKHLockingScript(s *bscript.Script, address string) (*bscript.Script, error) {
 	//Append P2PKH OPCODES
-	s.AppendOpCode(bscript.OpDUP)
-	s.AppendOpCode(bscript.OpHASH160)
+	s.AppendOpcodes(bscript.OpDUP)
+	s.AppendOpcodes(bscript.OpHASH160)
 
 	//Get PubKeyHash and Check Validity
 	a, err := bscript.NewAddressFromString(address)
@@ -157,9 +141,9 @@ func AppendP2PKHLockingScript(s *bscript.Script, address string) (*bscript.Scrip
 		return nil, err
 	}
 
-	s.AppendOpCode(bscript.OpEQUALVERIFY)
+	s.AppendOpcodes(bscript.OpEQUALVERIFY)
 
-	s.AppendOpCode(bscript.OpCHECKSIG)
+	s.AppendOpcodes(bscript.OpCHECKSIG)
 
 	return s, nil
 }
@@ -169,90 +153,80 @@ func AppendP2PKHLockingScript(s *bscript.Script, address string) (*bscript.Scrip
 func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 
 	var err error
-	s.AppendOpCode(bscript.Op1)
-	s.AppendOpCode(bscript.OpSPLIT)
-	// split 21 byte (0x15) hash from script
-	//if err = s.AppendPushDataHexString("15"); err != nil {
-	//	return nil, err
-	//}
-	s.AppendOpCode(bscript.OpSWAP)
-	s.AppendOpCode(bscript.OpSPLIT)
-	s.AppendOpCode(bscript.OpNIP)
+	// take first byte to check length of filter hash
+	// should always be 21 bytes
+	s.AppendOpcodes(bscript.Op1)
+	s.AppendOpcodes(bscript.OpSPLIT)
+	// split 21 byte hash from script
+	s.AppendOpcodes(bscript.OpSWAP)
+	s.AppendOpcodes(bscript.OpSPLIT)
+	// drop filter from stack
+	s.AppendOpcodes(bscript.OpNIP)
 
 	//push 187 to stack to split template after 'meta'+ pushdata prefix for pubkey
-	// i don't think I can push hex str need to instead get 139 manually i think
-	//if err = s.AppendPushDataHexString("79"); err != nil {
-	//	return nil, err
-	//}
-	s.AppendOpCode(bscript.Op16)
-	s.AppendOpCode(bscript.Op11)
-	s.AppendOpCode(bscript.OpMUL)
-	s.AppendOpCode(bscript.Op11)
-	s.AppendOpCode(bscript.OpADD)
+	if err = s.AppendPushDataHexString("79"); err != nil {
+		return nil, err
+	}
 
-	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.OpSPLIT)
 
-	//TODO: Should be smart and grab data prefix to better split the template. This would allow for data of non-fixed lengths
-	// push 33 (0x21) to stack to split template after public key of node
-	//if err = s.AppendPushDataHexString("21"); err != nil {
-	//	return nil, err
-	//}
-	s.AppendOpCode(bscript.Op1)
-	s.AppendOpCode(bscript.OpSPLIT)
-	s.AppendOpCode(bscript.OpOVER)
+	// grab length of pubkey and drop from stack
+	s.AppendOpcodes(bscript.Op1)
+	s.AppendOpcodes(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.OpOVER)
 
-	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.OpSPLIT)
 	// split first data prefix byte from txid
-	s.AppendOpCode(bscript.Op1)
-	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.Op1)
+	s.AppendOpcodes(bscript.OpSPLIT)
 
 	// push 32 (0x20) to stack to split template after parent txid
 	//if err = s.AppendPushDataHexString("20"); err != nil {
 	//	return nil, err
 	//}
 	// accomplished with op_OVER
-	s.AppendOpCode(bscript.OpOVER)
+	s.AppendOpcodes(bscript.OpOVER)
 
-	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.OpSPLIT)
 
 	// push Op_5 to split off OP_DROP, OP_DROP, and first 3 bytes of P2PKH script
-	s.AppendOpCode(bscript.Op5)
-	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.Op5)
+	s.AppendOpcodes(bscript.OpSPLIT)
 
 	// push 20 (0x14) to stack to split off pubkeyhash in P2PKH script
 	if err = s.AppendPushDataHexString("14"); err != nil {
 		return nil, err
 	}
-	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.OpSPLIT)
 
-	s.AppendOpCode(bscript.Op2)
-	s.AppendOpCode(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.Op2)
+	s.AppendOpcodes(bscript.OpSPLIT)
 
 	// drop anything after p2pkh
-	s.AppendOpCode(bscript.OpDROP)
+	s.AppendOpcodes(bscript.OpDROP)
 	// nip pubkeyhash
-	s.AppendOpCode(bscript.OpNIP)
+	s.AppendOpcodes(bscript.OpNIP)
 	// concatenate script template
-	s.AppendOpCode(bscript.OpCAT)
-	s.AppendOpCode(bscript.OpNIP)
-	s.AppendOpCode(bscript.OpCAT)
-	s.AppendOpCode(bscript.OpROT)
-	s.AppendOpCode(bscript.OpSWAP)
-	s.AppendOpCode(bscript.OpCAT)
-	s.AppendOpCode(bscript.OpROT)
-	s.AppendOpCode(bscript.OpSWAP)
-	s.AppendOpCode(bscript.OpCAT)
+	s.AppendOpcodes(bscript.OpCAT)
+	s.AppendOpcodes(bscript.OpNIP)
+	s.AppendOpcodes(bscript.OpCAT)
+	s.AppendOpcodes(bscript.OpROT)
+	s.AppendOpcodes(bscript.OpSWAP)
+	s.AppendOpcodes(bscript.OpCAT)
+	s.AppendOpcodes(bscript.OpROT)
+	s.AppendOpcodes(bscript.OpSWAP)
+	s.AppendOpcodes(bscript.OpCAT)
 	// SHA1 hash the script template
-	s.AppendOpCode(bscript.OpSHA1)
+	s.AppendOpcodes(bscript.OpSHA1)
 
 	// move pubkey to bottom of stack and check hashes
-	s.AppendOpCode(bscript.OpROT)
-	s.AppendOpCode(bscript.OpEQUALVERIFY)
+	s.AppendOpcodes(bscript.OpROT)
+	s.AppendOpcodes(bscript.OpEQUALVERIFY)
 
 	// grab public key and check they are equal for valid metanet node
-	s.AppendOpCode(bscript.Op2)
-	s.AppendOpCode(bscript.OpPICK)
-	s.AppendOpCode(bscript.OpEQUALVERIFY)
+	s.AppendOpcodes(bscript.Op2)
+	s.AppendOpcodes(bscript.OpPICK)
+	s.AppendOpcodes(bscript.OpEQUALVERIFY)
 
 	return s, nil
 

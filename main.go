@@ -3,46 +3,56 @@ package main
 import (
 	"fmt"
 
-	bsv "github.com/bitcoinschema/go-bitcoin"
-	woc "github.com/galt-tr/mn-lib/internal/woc"
-	metanet "github.com/galt-tr/mn-lib/metanet"
+	"github.com/galt-tr/mn-lib/metanet"
+	"github.com/galt-tr/mn-lib/types"
+	"github.com/libsv/go-bk/wif"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-bt/v2/bscript"
 )
 
 func main() {
-	parentPrivKey, _ := bsv.WifToPrivateKey("L4PF5nCubsEURgeZW6qCZs92CVesLEHtqvmcGXEwy4ppxdQNYCg9")
-	childPrivKey, _ := bsv.WifToPrivateKey("KyT6vXqr4LMENqFPBxkqtn3AkdErtYWgssNQz1rPTrmUTuYmHNtn")
-	pubKey := bsv.PubKeyFromPrivateKey(childPrivKey, true)
-	address, _ := bsv.GetAddressFromPubKeyString(pubKey, true)
-
+	childPrivKey, _ := wif.DecodeWIF("L448vgvBygTDNNRRxPLoxpVbkYQA6xcGDyPgUkahAP4tNAkVa6pD")
+	parentPrivKey, _ := wif.DecodeWIF("KzisysrR57Gjd3z7iZBYhVMPU7vQbAw8RnRfM5e4u5WTyWFqmHXv")
+	pubKey := childPrivKey.PrivKey.PubKey()
+	pubKeyNode := hex.EncodeToString(pubKey.SerializeCompressed())
+	fmt.Println(pubKey.SerialiseCompressed())
+	address, _ := bscript.NewAddressFromPublicKey(pubKey, true)
 	var sats uint64
 	var vOut uint32
 
-	txId := "58fc9319d7b9d18a92724e3b7e95ceba99ccd780b7995362d44cbee8bc46b545"
-	vOut = 1
+	txId := "de1452e582ed1ed4b10ad52d2412251d5d756d0c1152e726f4cb4d57369d2cca"
+	vOut = 0
+	amount := uint64(3000)
 
 	o, _ := woc.GetTransactionOutput(txId, int(vOut))
 
 	sats = uint64(o.Value * 100000000)
-	scriptPubKey := o.ScriptPubKey.Hex
-
-	node := &metanet.MetanetNode{
-		Prefix:        "meta",
-		NodeAddress:   address.String(),
-		NodePublicKey: pubKey,
-		ParentTxId:    txId,
-		Input: []*bsv.Utxo{&bsv.Utxo{
-			Satoshis:     sats,
-			ScriptPubKey: scriptPubKey,
-			TxID:         txId,
-			Vout:         vOut,
-		}},
-		InputPrivateKey: parentPrivKey,
-		ChangeAddress:   address.String(),
-		Data:            "testing",
+	scriptPubKey, err := bscript.NewFromHexString(o.ScriptPubKey.Hex)
+	if err != nil {
+		fmt.Println(err)
 	}
-	rawTx, err := metanet.CreateSpendableNode(node)
+
+	input := &bt.Input{
+		PreviousTxSatoshis: sats,
+		PreviousTxScript:   scriptPubKey,
+		PreviousTxOutIndex: vOut,
+	}
+	mn := &types.MetanetNode{
+		Prefix:          "meta",
+		NodeAddress:     address,
+		NodePublicKey:   pubKeyNode,
+		ParentTxId:      txId,
+		Satoshis:        amount,
+		Input:           input,
+		InputPrivateKey: parentPrivKey,
+		Data:            "parent node",
+		ChangeAddress:   NodeAddress,
+	}
+
+	rawTx, err := metanet.NewMetanetNode(mn)
 	if err != nil {
 		fmt.Println(err)
 	}
 	fmt.Println(rawTx)
+
 }

@@ -3,9 +3,9 @@ package sign
 import (
 	"github.com/bitcoinsv/bsvd/bsvec"
 	mnScript "github.com/galt-tr/mn-lib/script"
-	"github.com/libsv/go-bt"
-	"github.com/libsv/go-bt/bscript"
-	"github.com/libsv/go-bt/sighash"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-bt/v2/bscript"
+	"github.com/libsv/go-bt/v2/sighash"
 )
 
 type Signer struct {

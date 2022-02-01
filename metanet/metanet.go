@@ -8,38 +8,18 @@ import (
 	"strings"
 
 	bsv "github.com/bitcoinschema/go-bitcoin"
-	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/galt-tr/mn-lib/transaction"
-	"github.com/libsv/go-bt"
-	"github.com/libsv/go-bt/bscript"
+	"github.com/galt-tr/mn-lib/types"
+	"github.com/libsv/go-bk/bec"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-bt/v2/bscript"
 )
 
 //Use Default "Meta" Prefix
 //const prefix := "meta"
 
-type MetanetNode struct {
-	Prefix          string            //Prefix for Metanet Nodes - default to 'meta'
-	NodeAddress     string            //Node Public Key Address
-	NodePublicKey   string            //Public Key of Node
-	ParentTxId      string            //Transaction ID of Parent Node
-	Input           []*bsv.Utxo       //utxo of parent node
-	InputPrivateKey *bsvec.PrivateKey //Private Key used to sign input
-	Data            string            //Data to be added at end of OP_RETU in Metanet Node
-	ChangeAddress   string            //Use for Change
-}
-
-//func CreateOpPushTx(mn *MetanetNode) (string, error) {
-//payTo := &transaction.PayToMetanetAddress{
-//	Address:       mn.NodeAddress,
-//	Satoshis:      1500,
-//	ChangeAddress: mn.ChangeAddress,
-//}
-//rawTx, err := transaction.CreateOpPushTxTransaction(mn.Input, mn.InputPrivateKey, payTo)
-//return "", nil
-//}
-
-func CreateSpendableNode(mn *MetanetNode) (string, error) {
-	rawTx, err := createSpendableTransaction(mn)
+func CreateMetanetNode(mn *types.MetanetNode) (string, error) {
+	rawTx, err := transaction.CreateMetanetTransaction(mn)
 	if err != nil {
 		return "", err
 	}
@@ -47,25 +27,8 @@ func CreateSpendableNode(mn *MetanetNode) (string, error) {
 
 }
 
-func createSpendableTransaction(mn *MetanetNode) (*bt.Tx, error) {
-	payTo := &transaction.PayToMetanetAddress{
-		PublicKey:     mn.NodePublicKey,
-		Address:       mn.NodeAddress,
-		Satoshis:      3500,
-		ParentTxId:    mn.ParentTxId,
-		ChangeAddress: mn.ChangeAddress,
-	}
-
-	rawTx, err := transaction.CreateSpendableMetanetTxWithChange(mn.Input, payTo, mn.Data, mn.ChangeAddress, nil, nil, mn.InputPrivateKey)
-	if err != nil {
-		return nil, err
-	}
-	return rawTx, nil
-
-}
-
-//Creates Metanet node and returns Raw Transaction Hex
-func CreateNode(mn *MetanetNode) (string, error) {
+//Creates OP_RETURN Metanet node and returns Raw Transaction Hex
+func CreateOpReturnNode(mn *MetanetNode) (string, error) {
 	//Build OP_RETURN
 	opReturn, err := buildOpReturn(mn)
 	if err != nil {
@@ -78,7 +41,7 @@ func CreateNode(mn *MetanetNode) (string, error) {
 	return rawTx.ToString(), nil
 }
 
-func createTransaction(mn *MetanetNode, opReturn [][]byte) (*bt.Tx, error) {
+func createOpReturnTransaction(mn *MetanetNode, opReturn [][]byte) (*bt.Tx, error) {
 	//TODO: Nodes should be spendable
 	//payTo := &bsv.PayToAddress{
 	//	Address:  mn.NodeAddress,

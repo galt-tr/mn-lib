@@ -8,7 +8,7 @@ import (
 type MetanetNode struct {
 	Prefix          string          //Prefix for Metanet Nodes - default to 'meta'
 	NodeAddress     string          //Node Public Key Address
-	NodePublicKey   string          //Public Key of Node
+	NodePublicKey   []byte          //Public Key of Node
 	ParentTxId      string          //Transaction ID of Parent Node
 	Satoshis        uint64          //Number of Satoshis to lock in node
 	Input           *bt.Input       //utxo of parent node

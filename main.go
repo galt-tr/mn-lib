@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/galt-tr/mn-lib/internal/woc"
 	"github.com/galt-tr/mn-lib/metanet"
 	"github.com/galt-tr/mn-lib/types"
 	"github.com/libsv/go-bk/wif"
@@ -11,16 +12,14 @@ import (
 )
 
 func main() {
-	childPrivKey, _ := wif.DecodeWIF("L448vgvBygTDNNRRxPLoxpVbkYQA6xcGDyPgUkahAP4tNAkVa6pD")
-	parentPrivKey, _ := wif.DecodeWIF("KzisysrR57Gjd3z7iZBYhVMPU7vQbAw8RnRfM5e4u5WTyWFqmHXv")
+	childPrivKey, _ := wif.DecodeWIF("L4DtXj5wxuzTfhoGY5vNzSxuoxi7MApFpt4fM4g8RrLhW6GHypWV")
+	parentPrivKey, _ := wif.DecodeWIF("L4aUoic8n7ofQxgMhtbB1vgkS87kCK3ECCuZVSuTgihsr8CPHGKr")
 	pubKey := childPrivKey.PrivKey.PubKey()
-	pubKeyNode := hex.EncodeToString(pubKey.SerializeCompressed())
-	fmt.Println(pubKey.SerialiseCompressed())
 	address, _ := bscript.NewAddressFromPublicKey(pubKey, true)
 	var sats uint64
 	var vOut uint32
 
-	txId := "de1452e582ed1ed4b10ad52d2412251d5d756d0c1152e726f4cb4d57369d2cca"
+	txId := "274c1f33b2b160b54d5b159e818e94204d27eb50e64e1f55165a5319d671d8e8"
 	vOut = 0
 	amount := uint64(3000)
 
@@ -39,14 +38,14 @@ func main() {
 	}
 	mn := &types.MetanetNode{
 		Prefix:          "meta",
-		NodeAddress:     address,
-		NodePublicKey:   pubKeyNode,
+		NodeAddress:     address.AddressString,
+		NodePublicKey:   pubKey.SerialiseCompressed(),
 		ParentTxId:      txId,
 		Satoshis:        amount,
 		Input:           input,
-		InputPrivateKey: parentPrivKey,
-		Data:            "parent node",
-		ChangeAddress:   NodeAddress,
+		InputPrivateKey: parentPrivKey.PrivKey,
+		Data:            "child node",
+		ChangeAddress:   address.AddressString,
 	}
 
 	rawTx, err := metanet.NewMetanetNode(mn)

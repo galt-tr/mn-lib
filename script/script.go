@@ -10,6 +10,10 @@ import (
 	"github.com/libsv/go-bt/v2/sighash"
 )
 
+func IsMetanetTx(s *bscript.Script) bool {
+	return true
+}
+
 func NewSha1HashPuzzle(str, hash string) (*bscript.Script, error) {
 	s := &bscript.Script{}
 	var err error
@@ -34,8 +38,8 @@ func NewSha1HashPuzzle(str, hash string) (*bscript.Script, error) {
 func AppendFilterHash(s *bscript.Script) (*bscript.Script, error) {
 	var err error
 	//Push SHA1 Hash for Filtering
-	// SHA1 Hash of template is ' 4132cd76ca3582692f749658d9d58486e13d429b '
-	if err = s.AppendPushDataHexString("4132cd76ca3582692f749658d9d58486e13d429b"); err != nil {
+	// SHA1 Hash of template is '360dfe81bb0b24aa8aca7dcdf5b580a0b700925b'
+	if err = s.AppendPushDataHexString("360dfe81bb0b24aa8aca7dcdf5b580a0b700925b"); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -75,11 +79,11 @@ func NewMetanetLockingScript(mn *types.MetanetNode) (*bscript.Script, error) {
 		return nil, err
 	}
 	// append pubkey
-	if err = s.AppendPushDataHexString(mn.NodePublicKey); err != nil {
+	if err = s.AppendPushData(mn.NodePublicKey); err != nil {
 		return nil, err
 	}
 	// append parent Tx Id
-	if err = s.AppendPushDataHexString(mn.NodePublicKey); err != nil {
+	if err = s.AppendPushDataHexString(mn.ParentTxId); err != nil {
 		return nil, err
 	}
 
@@ -163,10 +167,16 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	// drop filter from stack
 	s.AppendOpcodes(bscript.OpNIP)
 
-	//push 187 to stack to split template after 'meta'+ pushdata prefix for pubkey
-	if err = s.AppendPushDataHexString("79"); err != nil {
-		return nil, err
-	}
+	//push 178 to stack to split template after 'meta'+ pushdata prefix for pubkey
+	//if err = s.AppendPushDataHexString("79"); err != nil {
+	//	return nil, err
+	//}
+
+	s.AppendOpcodes(bscript.Op16)
+	s.AppendOpcodes(bscript.Op11)
+	s.AppendOpcodes(bscript.OpMUL)
+	s.AppendOpcodes(bscript.Op5)
+	s.AppendOpcodes(bscript.OpADD)
 
 	s.AppendOpcodes(bscript.OpSPLIT)
 

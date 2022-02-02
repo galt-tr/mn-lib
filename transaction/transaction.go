@@ -1,14 +1,21 @@
 package transaction
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"github.com/galt-tr/mn-lib/script"
 	"github.com/galt-tr/mn-lib/types"
+	"github.com/libsv/go-bk/bec"
+	"github.com/libsv/go-bk/crypto"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
+	"github.com/libsv/go-bt/v2/sighash"
+	btunlocker "github.com/libsv/go-bt/v2/unlocker"
 	pushtxpreimage "github.com/murray-distributed-technologies/go-pushtx/preimage"
 )
 
-func CreateNode(mn *types.MetanetNodes) (string, error) {
+func CreateMetanetTransaction(mn *types.MetanetNode) (string, error) {
 	var err error
 	tx := bt.NewTx()
 
@@ -26,18 +33,18 @@ func CreateNode(mn *types.MetanetNodes) (string, error) {
 
 	// add change output
 	// TODO: if input is nonstandard change doesn't work
-	if input.PreviousTxScript.IsP2PKH() {
+	if mn.Input.PreviousTxScript.IsP2PKH() {
 		fq := bt.NewFeeQuote()
 		if err = tx.ChangeToAddress(mn.ChangeAddress, fq); err != nil {
 			return "", err
 		}
 	}
-	if !input.PreviousTxScript.IsP2PKH() {
+	if !mn.Input.PreviousTxScript.IsP2PKH() {
 		lockingScript, err := bscript.NewP2PKHFromAddress(mn.ChangeAddress)
 		if err != nil {
 			return "", err
 		}
-		amount := (mn.Input.PreviousTxSatoshis - satoshis - 500)
+		amount := (mn.Input.PreviousTxSatoshis - mn.Satoshis - 500)
 		changeOutput := bt.Output{
 			Satoshis:      amount,
 			LockingScript: lockingScript,

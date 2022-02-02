@@ -38,8 +38,8 @@ func NewSha1HashPuzzle(str, hash string) (*bscript.Script, error) {
 func AppendFilterHash(s *bscript.Script) (*bscript.Script, error) {
 	var err error
 	//Push SHA1 Hash for Filtering
-	// SHA1 Hash of template is '360dfe81bb0b24aa8aca7dcdf5b580a0b700925b'
-	if err = s.AppendPushDataHexString("360dfe81bb0b24aa8aca7dcdf5b580a0b700925b"); err != nil {
+	// SHA1 Hash of template is '318672c5be62f835a01e67488ffd76c59c3e686c'
+	if err = s.AppendPushDataHexString("318672c5be62f835a01e67488ffd76c59c3e686c"); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -56,6 +56,11 @@ func NewMetanetLockingScript(mn *types.MetanetNode) (*bscript.Script, error) {
 
 	// grab preimage to top of stack
 	s.AppendOpcodes(bscript.Op1, bscript.OpPICK)
+	s.AppendOpcodes(bscript.OpDUP)
+	if s, err = GetParentTxIDFromPreimage(s); err != nil {
+		return nil, err
+	}
+	s.AppendOpcodes(bscript.Op1, bscript.OpPICK)
 
 	// add get input locking script from preimage
 	if s, err = pushtx.AppendGetLockingScriptFromPreimage(s); err != nil {
@@ -65,10 +70,18 @@ func NewMetanetLockingScript(mn *types.MetanetNode) (*bscript.Script, error) {
 	// strip data from locking script to get script template
 	// checks that SHA1 hash of script template verifies against filter hash
 	// checks that public key in node matches with signature pubkey
+	// pushes parentTxID of Metanet Node to ALTSTACK
 	if s, err = StripTemplateData(s); err != nil {
 		return nil, err
 	}
 
+	// check that parentTxID in preimage is equivalent to what is defined in metanet node
+	if s, err = GetParentTxIDFromPreimage(s); err != nil {
+		return nil, err
+	}
+	// grab parentTxID from altstack and check that it is equal to preimage txid
+	s.AppendOpcodes(bscript.OpFROMALTSTACK)
+	s.AppendOpcodes(bscript.OpEQUALVERIFY)
 	// add OP_PUSH_TX
 	if s, err = pushtx.AppendPushTx(s); err != nil {
 		return nil, err
@@ -152,6 +165,24 @@ func AppendP2PKHLockingScript(s *bscript.Script, address string) (*bscript.Scrip
 	return s, nil
 }
 
+func GetParentTxIDFromPreimage(s *bscript.Script) (*bscript.Script, error) {
+	var err error
+
+	//assumes preimage is on top of stack
+	// 68 bytes
+	if err = s.AppendPushDataHexString("44"); err != nil {
+		return nil, err
+	}
+	//split
+	s.AppendOpcodes(bscript.OpSPLIT)
+	s.AppendPushDataHexString("20")
+	s.AppendOpcodes(bscript.OpSPLIT)
+	s.AppendOpcodes(bscript.OpDROP)
+	s.AppendOpcodes(bscript.OpNIP)
+
+	return s, nil
+}
+
 // 25 bytes
 // assumes locking script is on top of the stack
 func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
@@ -167,15 +198,15 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	// drop filter from stack
 	s.AppendOpcodes(bscript.OpNIP)
 
-	//push 178 to stack to split template after 'meta'+ pushdata prefix for pubkey
+	//push 178 to stack to split template after 'meta'
 	//if err = s.AppendPushDataHexString("79"); err != nil {
 	//	return nil, err
 	//}
 
 	s.AppendOpcodes(bscript.Op16)
-	s.AppendOpcodes(bscript.Op11)
+	s.AppendOpcodes(bscript.Op12)
 	s.AppendOpcodes(bscript.OpMUL)
-	s.AppendOpcodes(bscript.Op5)
+	s.AppendOpcodes(bscript.Op14)
 	s.AppendOpcodes(bscript.OpADD)
 
 	s.AppendOpcodes(bscript.OpSPLIT)
@@ -199,6 +230,8 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 
 	s.AppendOpcodes(bscript.OpSPLIT)
 
+	// have txid here
+
 	// push Op_5 to split off OP_DROP, OP_DROP, and first 3 bytes of P2PKH script
 	s.AppendOpcodes(bscript.Op5)
 	s.AppendOpcodes(bscript.OpSPLIT)
@@ -218,7 +251,10 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	s.AppendOpcodes(bscript.OpNIP)
 	// concatenate script template
 	s.AppendOpcodes(bscript.OpCAT)
-	s.AppendOpcodes(bscript.OpNIP)
+	s.AppendOpcodes(bscript.OpSWAP)
+
+	// send parentTxId to altstack
+	s.AppendOpcodes(bscript.OpTOALTSTACK)
 	s.AppendOpcodes(bscript.OpCAT)
 	s.AppendOpcodes(bscript.OpROT)
 	s.AppendOpcodes(bscript.OpSWAP)
@@ -229,15 +265,183 @@ func StripTemplateData(s *bscript.Script) (*bscript.Script, error) {
 	// SHA1 hash the script template
 	s.AppendOpcodes(bscript.OpSHA1)
 
+	s.AppendOpcodes(bscript.Op3)
+	s.AppendOpcodes(bscript.OpPICK)
+
 	// move pubkey to bottom of stack and check hashes
-	s.AppendOpcodes(bscript.OpROT)
 	s.AppendOpcodes(bscript.OpEQUALVERIFY)
 
 	// grab public key and check they are equal for valid metanet node
-	s.AppendOpcodes(bscript.Op2)
+	s.AppendOpcodes(bscript.Op3)
 	s.AppendOpcodes(bscript.OpPICK)
 	s.AppendOpcodes(bscript.OpEQUALVERIFY)
+	s.AppendOpcodes(bscript.OpNIP)
+	s.AppendOpcodes(bscript.OpSWAP)
 
 	return s, nil
+
+}
+
+func convertTxIdLittleEndian(s *bscript.Script) *bscript.Script {
+	s.AppendOpcodes(bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP,
+		bscript.OpSIZE,
+		bscript.Op1SUB,
+		bscript.OpSPLIT,
+		bscript.OpSWAP)
+	return s
+}
+
+func concatenateTxIdBigEndian(s *bscript.Script) *bscript.Script {
+	s.AppendOpcodes(bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT,
+		bscript.OpCAT)
+	return s
 
 }
